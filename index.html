@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PlayStation Lounge Calculator</title>
@@ -484,583 +487,204 @@
     </div>
 
     <script>
-        class PlayStationCalculator {
-            constructor() {
-                this.singlePrice = 60;
-                this.multiPrice = 80;
-                this.sessionStartTime = null;
-                this.currentMode = 'single';
-                this.selectedPlayers = [];
-                this.activePlayers = [];
-                this.sessionHistory = [];
-                this.timers = {
-                    total: 0,
-                    single: 0,
-                    multi: 0
-                };
-                this.lastModeChangeTime = null;
-                this.sessionInterval = null;
-                this.currentAction = null;
-                this.currentActionData = null;
-                
-                this.initializeEventListeners();
-                this.updatePlayerDropdowns();
-            }
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+    // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyAiGYPQNJYdtNa0vw54B3BhmgXzJHxpH-A",
+        authDomain: "pslounge-92f43.firebaseapp.com",
+        databaseURL: "https://pslounge-92f43-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "pslounge-92f43",
+        storageBucket: "pslounge-92f43.firebasestorage.app",
+        messagingSenderId: "262386185132",
+        appId: "1:262386185132:web:cf72585e8b882349a9c009"
+    };
 
-            initializeEventListeners() {
-                // Start page events
-                document.getElementById('addPlayerBtn').addEventListener('click', () => this.addPlayerToSelection());
-                document.getElementById('startSessionBtn').addEventListener('click', () => this.startSession());
-                document.getElementById('playerSelect').addEventListener('change', () => this.updateAddButton());
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const database = firebase.database();
 
-                // Session page events
-                document.getElementById('singleModeBtn').addEventListener('click', () => this.confirmModeChange('single'));
-                document.getElementById('multiModeBtn').addEventListener('click', () => this.confirmModeChange('multi'));
-                document.getElementById('addPlayerSessionBtn').addEventListener('click', () => this.addPlayerToSession());
-                document.getElementById('endSessionBtn').addEventListener('click', () => this.confirmEndSession());
-                document.getElementById('newSessionBtn').addEventListener('click', () => this.confirmNewSession());
+    class PlayStationCalculator {
+        constructor() {
+            // Existing properties
+            this.singlePrice = 60;
+            this.multiPrice = 80;
+            this.sessionStartTime = null;
+            this.currentMode = 'single';
+            this.selectedPlayers = [];
+            this.activePlayers = [];
+            this.sessionHistory = [];
+            this.timers = {
+                total: 0,
+                single: 0,
+                multi: 0
+            };
+            this.lastModeChangeTime = null;
+            this.sessionInterval = null;
+            this.currentAction = null;
+            this.currentActionData = null;
+            this.currentSessionId = null;
+            
+            this.initializeEventListeners();
+            this.updatePlayerDropdowns();
+            this.initSession();
+        }
 
-                // Summary page events
-                document.getElementById('newSessionFromSummaryBtn').addEventListener('click', () => this.newSession());
-
-                // Modal events
-                document.getElementById('confirmYes').addEventListener('click', () => this.executeConfirmedAction());
-                document.getElementById('confirmNo').addEventListener('click', () => this.closeModal());
-                
-                // Add event listener for modal background click to close
-                document.getElementById('confirmModal').addEventListener('click', (e) => {
-                    if (e.target === document.getElementById('confirmModal')) {
-                        this.closeModal();
-                    }
-                });
-            }
-
-            updateAddButton() {
-                const select = document.getElementById('playerSelect');
-                const btn = document.getElementById('addPlayerBtn');
-                btn.disabled = !select.value || this.selectedPlayers.includes(select.value);
-            }
-
-            addPlayerToSelection() {
-                const select = document.getElementById('playerSelect');
-                const player = select.value;
-                
-                if (player && !this.selectedPlayers.includes(player)) {
-                    this.selectedPlayers.push(player);
-                    this.updateSelectedPlayersDisplay();
-                    this.updateStartButton();
-                    select.value = '';
-                    this.updateAddButton();
-                }
-            }
-
-            updateSelectedPlayersDisplay() {
-                const container = document.getElementById('selectedPlayers');
-                const tagsContainer = document.getElementById('playerTags');
-                
-                if (this.selectedPlayers.length > 0) {
-                    container.classList.remove('hidden');
-                    tagsContainer.innerHTML = this.selectedPlayers.map(player => 
-                        `<span class="player-tag">${player}</span>`
-                    ).join('');
-                } else {
-                    container.classList.add('hidden');
-                }
-            }
-
-            updateStartButton() {
-                const btn = document.getElementById('startSessionBtn');
-                btn.disabled = this.selectedPlayers.length < 2;
-            }
-
-            startSession() {
-                this.singlePrice = parseFloat(document.getElementById('singlePrice').value);
-                this.multiPrice = parseFloat(document.getElementById('multiPrice').value);
-                
-                this.sessionStartTime = new Date();
-                this.lastModeChangeTime = new Date();
-                this.currentMode = 'single';
-                
-                // Initialize active players
-                this.activePlayers = this.selectedPlayers.map(name => ({
-                    name: name,
-                    joinTime: new Date(),
-                    totalTime: 0,
-                    singleTime: 0,
-                    multiTime: 0,
-                    cost: 0,
-                    periods: []
-                }));
-
-                // Add initial period
-                this.sessionHistory.push({
-                    startTime: new Date(),
-                    mode: 'single',
-                    players: [...this.activePlayers.map(p => p.name)]
-                });
-
-                this.showPage('sessionPage');
-                this.updatePlayerDropdowns();
-                this.updateSessionDisplay();
-                this.startTimer();
-            }
-
-            startTimer() {
-                this.sessionInterval = setInterval(() => {
-                    const now = new Date();
-                    const totalMs = now - this.sessionStartTime;
-                    const currentPeriodMs = now - this.lastModeChangeTime;
-                    
-                    this.timers.total = Math.floor(totalMs / 1000);
-                    
-                    if (this.currentMode === 'single') {
-                        this.timers.single += 1;
-                    } else {
-                        this.timers.multi += 1;
-                    }
-                    
-                    this.updateActivePlayers();
-                    this.updateSessionDisplay();
-                }, 1000);
-            }
-
-            updateActivePlayers() {
-                const now = new Date();
-                const currentPeriodHours = (now - this.lastModeChangeTime) / (1000 * 60 * 60);
-                const pricePerSecond = (this.currentMode === 'single' ? this.singlePrice : this.multiPrice) / 3600;
-                
-                this.activePlayers.forEach(player => {
-                    const totalMs = now - player.joinTime;
-                    player.totalTime = Math.floor(totalMs / 1000);
-                    
-                    // Calculate cost based on all periods
-                    player.cost = this.calculatePlayerCost(player.name, now);
-                });
-            }
-
-            getPlayerBreakdown(playerName) {
-                const breakdown = [];
-                
-                this.sessionHistory.forEach(period => {
-                    if (period.players.includes(playerName)) {
-                        const periodStart = period.startTime;
-                        const periodEnd = period.endTime || new Date();
-                        const periodHours = (periodEnd - periodStart) / (1000 * 60 * 60);
-                        const pricePerHour = period.mode === 'single' ? this.singlePrice : this.multiPrice;
-                        const periodCost = (pricePerHour * periodHours) / period.players.length;
-                        
-                        breakdown.push({
-                            mode: period.mode,
-                            startTime: periodStart,
-                            endTime: periodEnd,
-                            duration: periodHours,
-                            cost: periodCost,
-                            pricePerHour: pricePerHour,
-                            playerCount: period.players.length
-                        });
-                    }
-                });
-                
-                return breakdown;
-            }
-
-            calculatePlayerCost(playerName, currentTime) {
-                let totalCost = 0;
-                const now = currentTime || new Date();
-                
-                // Calculate cost for completed periods
-                this.sessionHistory.forEach(period => {
-                    if (period.players.includes(playerName)) {
-                        const periodStart = period.startTime;
-                        const periodEnd = period.endTime || now;
-                        const periodHours = (periodEnd - periodStart) / (1000 * 60 * 60);
-                        const pricePerHour = period.mode === 'single' ? this.singlePrice : this.multiPrice;
-                        const periodCost = (pricePerHour * periodHours) / period.players.length;
-                        totalCost += periodCost;
-                    }
-                });
-
-                return totalCost;
-            }
-
-            confirmModeChange(newMode) {
-                if (newMode === this.currentMode) return;
-                
-                this.currentAction = 'modeChange';
-                this.currentActionData = { newMode };
-                this.showConfirmModal(
-                    'Change Game Mode',
-                    `Switch from ${this.currentMode} mode to ${newMode} mode?`
-                );
-            }
-
-            changeModeConfirmed(newMode) {
-                // End current period
-                const currentPeriod = this.sessionHistory[this.sessionHistory.length - 1];
-                if (currentPeriod && !currentPeriod.endTime) {
-                    currentPeriod.endTime = new Date();
-                }
-
-                // Start new period
-                this.currentMode = newMode;
-                this.lastModeChangeTime = new Date();
-                
-                this.sessionHistory.push({
-                    startTime: new Date(),
-                    mode: newMode,
-                    players: [...this.activePlayers.map(p => p.name)]
-                });
-
-                this.updateSessionDisplay();
-            }
-
-            addPlayerToSession() {
-                const select = document.getElementById('addPlayerSelect');
-                const playerName = select.value;
-                
-                if (playerName) {
-                    const newPlayer = {
-                        name: playerName,
-                        joinTime: new Date(),
-                        totalTime: 0,
-                        singleTime: 0,
-                        multiTime: 0,
-                        cost: 0,
-                        periods: []
-                    };
-                    
-                    this.activePlayers.push(newPlayer);
-                    
-                    // End current period and start new one with added player
-                    const currentPeriod = this.sessionHistory[this.sessionHistory.length - 1];
-                    if (currentPeriod && !currentPeriod.endTime) {
-                        currentPeriod.endTime = new Date();
-                    }
-
-                    this.lastModeChangeTime = new Date();
-                    this.sessionHistory.push({
-                        startTime: new Date(),
-                        mode: this.currentMode,
-                        players: [...this.activePlayers.map(p => p.name)]
-                    });
-
-                    select.value = '';
-                    this.updatePlayerDropdowns();
-                    this.updateSessionDisplay();
-                }
-            }
-
-            confirmRemovePlayer(playerName) {
-                const player = this.activePlayers.find(p => p.name === playerName);
-                const finalCost = this.calculatePlayerCost(playerName);
-                const breakdown = this.getPlayerBreakdown(playerName);
-                
-                this.currentAction = 'removePlayer';
-                this.currentActionData = { playerName };
-                
-                // Show detailed payment breakdown
-                this.showPlayerPaymentModal(playerName, finalCost, breakdown);
-            }
-
-            showPlayerPaymentModal(playerName, totalCost, breakdown) {
-                const modal = document.getElementById('confirmModal');
-                const title = document.getElementById('confirmTitle');
-                const message = document.getElementById('confirmMessage');
-                
-                title.textContent = `${playerName} - Payment Due`;
-                
-                let breakdownHTML = `
-                    <div style="text-align: left; margin: 20px 0;">
-                        <strong>Total Amount: ${totalCost.toFixed(2)} EGP</strong>
-                        <br><br>
-                        <strong>Payment Breakdown:</strong>
-                        <div style="font-size: 0.9rem; margin-top: 10px;">
-                `;
-                
-                breakdown.forEach((period, index) => {
-                    const startTime = period.startTime.toLocaleTimeString();
-                    const endTime = period.endTime ? period.endTime.toLocaleTimeString() : 'Now';
-                    const duration = this.formatTime(Math.floor((period.endTime || new Date() - period.startTime) / 1000));
-                    
-                    breakdownHTML += `
-                        <div style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 8px;">
-                            <strong>${period.mode.charAt(0).toUpperCase() + period.mode.slice(1)} Mode:</strong> ${period.cost.toFixed(2)} EGP<br>
-                            <small>⏰ ${startTime} - ${endTime} (${duration})</small><br>
-                            <small>👥 Split with ${period.playerCount} players</small>
-                        </div>
-                    `;
-                });
-                
-                breakdownHTML += `
-                        </div>
-                    </div>
-                `;
-                
-                message.innerHTML = breakdownHTML;
-                modal.style.display = 'block';
-            }
-
-            removePlayerConfirmed(playerName) {
-                this.activePlayers = this.activePlayers.filter(p => p.name !== playerName);
-                
-                // End current period
-                const currentPeriod = this.sessionHistory[this.sessionHistory.length - 1];
-                if (currentPeriod && !currentPeriod.endTime) {
-                    currentPeriod.endTime = new Date();
-                }
-
-                // Check if we have enough players to continue
-                if (this.activePlayers.length < 2) {
-                    this.endSession();
-                    return;
-                }
-
-                // Start new period without removed player
-                this.lastModeChangeTime = new Date();
-                this.sessionHistory.push({
-                    startTime: new Date(),
-                    mode: this.currentMode,
-                    players: [...this.activePlayers.map(p => p.name)]
-                });
-
-                this.updatePlayerDropdowns();
-                this.updateSessionDisplay();
-            }
-
-            confirmEndSession() {
-                this.currentAction = 'endSession';
-                this.currentActionData = {};
-                this.showConfirmModal(
-                    'End Session',
-                    'Are you sure you want to end the current session?'
-                );
-            }
-
-            confirmNewSession() {
-                this.currentAction = 'newSession';
-                this.currentActionData = {};
-                this.showConfirmModal(
-                    'New Session',
-                    'Are you sure you want to start a new session? Current session will be lost.'
-                );
-            }
-
-            endSession() {
-                // End current period
-                const currentPeriod = this.sessionHistory[this.sessionHistory.length - 1];
-                if (currentPeriod && !currentPeriod.endTime) {
-                    currentPeriod.endTime = new Date();
-                }
-
-                clearInterval(this.sessionInterval);
-                this.generateSummary();
-                this.showPage('summaryPage');
-            }
-
-            newSession() {
-                this.reset();
+        // Simplified initialization - no authentication
+        initSession() {
+            // Try to load session from localStorage first
+            const savedSessionId = localStorage.getItem('psSessionId');
+            if (savedSessionId) {
+                this.loadSession(savedSessionId);
+            } else {
                 this.showPage('startPage');
-            }
-
-            reset() {
-                if (this.sessionInterval) {
-                    clearInterval(this.sessionInterval);
-                }
-                
-                this.selectedPlayers = [];
-                this.activePlayers = [];
-                this.sessionHistory = [];
-                this.timers = { total: 0, single: 0, multi: 0 };
-                this.sessionStartTime = null;
-                this.lastModeChangeTime = null;
-                this.currentMode = 'single';
-                
-                this.updateSelectedPlayersDisplay();
-                this.updateStartButton();
-                this.updatePlayerDropdowns();
-            }
-
-            generateSummary() {
-                const summaryContainer = document.getElementById('finalSummary');
-                let totalSessionCost = 0;
-                
-                // Calculate final costs for all players who participated
-                const allPlayers = new Set();
-                this.sessionHistory.forEach(period => {
-                    period.players.forEach(player => allPlayers.add(player));
-                });
-
-                const playerSummaries = [];
-                allPlayers.forEach(playerName => {
-                    const cost = this.calculatePlayerCost(playerName);
-                    const breakdown = this.getPlayerBreakdown(playerName);
-                    totalSessionCost += cost;
-                    
-                    playerSummaries.push({
-                        name: playerName,
-                        cost: cost,
-                        breakdown: breakdown
-                    });
-                });
-
-                // Sort by cost (highest first)
-                playerSummaries.sort((a, b) => b.cost - a.cost);
-
-                let summaryHTML = '';
-                playerSummaries.forEach(player => {
-                    const totalTime = player.breakdown.reduce((total, period) => {
-                        return total + (period.endTime - period.startTime);
-                    }, 0);
-                    
-                    summaryHTML += `
-                        <div class="summary-item">
-                            <div class="player-name">${player.name}</div>
-                            <div class="player-cost">${player.cost.toFixed(2)} EGP</div>
-                            <div class="player-stats">
-                                Total time: ${this.formatTime(totalTime / 1000)} | 
-                                Periods: ${player.breakdown.length}
-                            </div>
-                            <div class="breakdown-details" style="margin-top: 10px; font-size: 0.85rem;">
-                                <strong>Payment Breakdown:</strong>
-                    `;
-                    
-                    player.breakdown.forEach((period, index) => {
-                        const startTime = period.startTime.toLocaleTimeString();
-                        const endTime = period.endTime.toLocaleTimeString();
-                        const duration = this.formatTime(Math.floor((period.endTime - period.startTime) / 1000));
-                        
-                        summaryHTML += `
-                            <div style="margin: 5px 0; padding: 5px; background: rgba(0,0,0,0.05); border-radius: 5px;">
-                                <strong>${period.mode.charAt(0).toUpperCase() + period.mode.slice(1)}:</strong> ${period.cost.toFixed(2)} EGP
-                                <br><small>⏰ ${startTime} - ${endTime} (${duration})</small>
-                                <br><small>👥 Split with ${period.playerCount} players</small>
-                            </div>
-                        `;
-                    });
-                    
-                    summaryHTML += `
-                            </div>
-                        </div>
-                    `;
-                });
-
-                summaryHTML += `
-                    <div class="summary-total">
-                        Total Session Cost: ${totalSessionCost.toFixed(2)} EGP
-                    </div>
-                `;
-
-                summaryContainer.innerHTML = summaryHTML;
-            }
-
-            updatePlayerDropdowns() {
-                const allPlayers = ['Amr', 'Essawy', 'Omar', 'Fady', 'Kareem', 
-                                 'Ali', 'Hoba', 'Ezzat', 'Guest 1', 'Guest 2'];
-                
-                // Update add player dropdown in session
-                const sessionSelect = document.getElementById('addPlayerSelect');
-                const activePlayerNames = this.activePlayers.map(p => p.name);
-                
-                sessionSelect.innerHTML = '<option value="">Choose a player...</option>';
-                allPlayers.forEach(player => {
-                    if (!activePlayerNames.includes(player)) {
-                        sessionSelect.innerHTML += `<option value="${player}">${player}</option>`;
-                    }
-                });
-            }
-
-            updateSessionDisplay() {
-                // Update timers
-                document.getElementById('totalTime').textContent = this.formatTime(this.timers.total);
-                document.getElementById('singleTime').textContent = this.formatTime(this.timers.single);
-                document.getElementById('multiTime').textContent = this.formatTime(this.timers.multi);
-                
-                // Update current mode
-                document.getElementById('currentMode').textContent = this.currentMode.charAt(0).toUpperCase() + this.currentMode.slice(1);
-                
-                // Update mode buttons
-                document.getElementById('singleModeBtn').className = 'mode-btn' + (this.currentMode === 'single' ? ' active' : '');
-                document.getElementById('multiModeBtn').className = 'mode-btn' + (this.currentMode === 'multi' ? ' active' : '');
-                
-                // Update players list
-                this.updatePlayersList();
-                
-                // Update active player count
-                document.getElementById('activePlayerCount').textContent = this.activePlayers.length;
-            }
-
-            updatePlayersList() {
-                const container = document.getElementById('playersList');
-                
-                container.innerHTML = this.activePlayers.map(player => `
-                    <div class="player-item">
-                        <div class="player-info">
-                            <div class="player-name">${player.name}</div>
-                            <div class="player-stats">
-                                Time: ${this.formatTime(player.totalTime)} | 
-                                Cost: ${player.cost.toFixed(2)} EGP
-                            </div>
-                            <div class="timestamp">
-                                Joined: ${player.joinTime.toLocaleTimeString()}
-                            </div>
-                        </div>
-                        <button class="remove-player" onclick="app.confirmRemovePlayer('${player.name}')">Remove</button>
-                    </div>
-                `).join('');
-            }
-
-            formatTime(seconds) {
-                const hours = Math.floor(seconds / 3600);
-                const minutes = Math.floor((seconds % 3600) / 60);
-                const secs = seconds % 60;
-                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            }
-
-            showConfirmModal(title, message) {
-                document.getElementById('confirmTitle').textContent = title;
-                document.getElementById('confirmMessage').innerHTML = message;
-                document.getElementById('confirmModal').style.display = 'block';
-            }
-
-            closeModal() {
-                document.getElementById('confirmModal').style.display = 'none';
-                this.currentAction = null;
-                this.currentActionData = null;
-            }
-
-            executeConfirmedAction() {
-                switch (this.currentAction) {
-                    case 'modeChange':
-                        this.changeModeConfirmed(this.currentActionData.newMode);
-                        break;
-                    case 'removePlayer':
-                        this.removePlayerConfirmed(this.currentActionData.playerName);
-                        break;
-                    case 'endSession':
-                        this.endSession();
-                        break;
-                    case 'newSession':
-                        this.newSession();
-                        break;
-                }
-                this.closeModal();
-            }
-
-            showPage(pageId) {
-                const pages = ['startPage', 'sessionPage', 'summaryPage'];
-                pages.forEach(page => {
-                    const element = document.getElementById(page);
-                    if (page === pageId) {
-                        element.classList.remove('hidden');
-                    } else {
-                        element.classList.add('hidden');
-                    }
-                });
             }
         }
 
-        // Initialize the app
-        const app = new PlayStationCalculator();
-    </script>
+        // Modified to save to Firebase
+        async startSession() {
+            this.singlePrice = parseFloat(document.getElementById('singlePrice').value);
+            this.multiPrice = parseFloat(document.getElementById('multiPrice').value);
+            
+            this.sessionStartTime = new Date();
+            this.lastModeChangeTime = new Date();
+            this.currentMode = 'single';
+            this.currentSessionId = 'session-' + Date.now();
+            localStorage.setItem('psSessionId', this.currentSessionId);
+            
+            // Initialize active players
+            this.activePlayers = this.selectedPlayers.map(name => ({
+                name: name,
+                joinTime: new Date(),
+                totalTime: 0,
+                singleTime: 0,
+                multiTime: 0,
+                cost: 0,
+                periods: []
+            }));
+
+            // Add initial period
+            this.sessionHistory.push({
+                startTime: new Date(),
+                mode: 'single',
+                players: [...this.activePlayers.map(p => p.name)]
+            });
+
+            // Save to Firebase
+            await this.saveSession();
+
+            this.showPage('sessionPage');
+            this.updatePlayerDropdowns();
+            this.updateSessionDisplay();
+            this.startTimer();
+        }
+
+        // Save session data to Firebase
+        async saveSession() {
+            if (!this.currentSessionId) return;
+            
+            const sessionData = {
+                singlePrice: this.singlePrice,
+                multiPrice: this.multiPrice,
+                sessionStartTime: this.sessionStartTime.getTime(),
+                currentMode: this.currentMode,
+                selectedPlayers: this.selectedPlayers,
+                activePlayers: this.activePlayers,
+                sessionHistory: this.sessionHistory,
+                timers: this.timers,
+                lastModeChangeTime: this.lastModeChangeTime ? this.lastModeChangeTime.getTime() : null,
+                lastUpdated: Date.now()
+            };
+
+            try {
+                await database.ref(`sessions/${this.currentSessionId}`).set(sessionData);
+                console.log("Session saved to Firebase");
+            } catch (error) {
+                console.error("Error saving session:", error);
+            }
+        }
+
+        // Load session from Firebase
+        async loadSession(sessionId) {
+            try {
+                const snapshot = await database.ref(`sessions/${sessionId}`).once('value');
+                const sessionData = snapshot.val();
+                
+                if (sessionData) {
+                    this.currentSessionId = sessionId;
+                    this.singlePrice = sessionData.singlePrice;
+                    this.multiPrice = sessionData.multiPrice;
+                    this.sessionStartTime = new Date(sessionData.sessionStartTime);
+                    this.currentMode = sessionData.currentMode;
+                    this.selectedPlayers = sessionData.selectedPlayers;
+                    this.activePlayers = sessionData.activePlayers;
+                    this.sessionHistory = sessionData.sessionHistory;
+                    this.timers = sessionData.timers;
+                    this.lastModeChangeTime = sessionData.lastModeChangeTime ? new Date(sessionData.lastModeChangeTime) : null;
+                    
+                    // Update UI
+                    this.showPage('sessionPage');
+                    this.updatePlayerDropdowns();
+                    this.updateSessionDisplay();
+                    
+                    // Calculate time since last save
+                    const now = new Date();
+                    const elapsedSeconds = Math.floor((now - this.sessionStartTime) / 1000);
+                    const timeDiff = elapsedSeconds - this.timers.total;
+                    
+                    // Adjust timers
+                    this.timers.total = elapsedSeconds;
+                    if (this.currentMode === 'single') {
+                        this.timers.single += timeDiff;
+                    } else {
+                        this.timers.multi += timeDiff;
+                    }
+                    
+                    this.startTimer();
+                }
+            } catch (error) {
+                console.error("Error loading session:", error);
+                // Fallback to new session if loading fails
+                this.showPage('startPage');
+            }
+        }
+
+        // Add these to methods that change state
+        async changeModeConfirmed(newMode) {
+            // ... existing code ...
+            await this.saveSession();
+        }
+
+        async addPlayerToSession() {
+            // ... existing code ...
+            await this.saveSession();
+        }
+
+        async removePlayerConfirmed(playerName) {
+            // ... existing code ...
+            await this.saveSession();
+        }
+
+        async endSession() {
+            // ... existing code ...
+            await this.saveSession();
+            localStorage.removeItem('psSessionId');
+        }
+
+        async newSession() {
+            this.reset();
+            localStorage.removeItem('psSessionId');
+            this.showPage('startPage');
+        }
+
+        // ... keep all your other existing methods unchanged ...
+    }
+
+    // Initialize the app
+    const app = new PlayStationCalculator();
+</script>
 </body>
 </html>
