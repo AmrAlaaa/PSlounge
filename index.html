@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PlayStation Lounge Calculator</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Segoe+UI&display=swap" />
     <style>
         * {
             margin: 0;
@@ -357,33 +356,146 @@
     </style>
 </head>
 <body>
-  <div class="container">
-    <div id="startPage">
-      <h1>PlayStation Lounge Calculator</h1>
-      <input id="singlePrice" type="number" placeholder="Single Price" value="60" />
-      <input id="multiPrice" type="number" placeholder="Multi Price" value="80" />
-      <select id="playerSelect">
-        <option value="">Select Player</option>
-        <option value="Amr">Amr</option>
-        <option value="Omar">Omar</option>
-        <option value="Fady">Fady</option>
-      </select>
-      <button id="addPlayerBtn">Add Player</button>
-      <button id="startSessionBtn">Start Session</button>
+    <div class="connection-status" id="connectionStatus">
+        <span id="connectionText">Connecting</span>
+        <span class="loading-spinner" id="loadingSpinner"></span>
     </div>
-    <div id="sessionPage" class="hidden">
-      <h2>Session Running</h2>
-      <p id="sessionStatus"></p>
-      <button id="endSessionBtn">End Session</button>
+
+    <div class="container">
+        <!-- Start Page -->
+        <div id="startPage" class="card">
+            <div class="header">
+                <h1>🎮 PlayStation Lounge</h1>
+                <p>Cost Calculator</p>
+            </div>
+
+            <div class="form-group">
+                <label for="singlePrice">Single Mode Price (EGP/hour)</label>
+                <input type="number" id="singlePrice" value="60" min="0" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="multiPrice">Multi Mode Price (EGP/hour)</label>
+                <input type="number" id="multiPrice" value="80" min="0" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label>Select Initial Players (minimum 2)</label>
+                <div class="player-selection">
+                    <select id="playerSelect">
+                        <option value="">Choose a player...</option>
+                        <option value="Amr">Amr</option>
+                        <option value="Essawy">Essawy</option>
+                        <option value="Omar">Omar</option>
+                        <option value="Fady">Fady</option>
+                        <option value="Kareem">Kareem</option>
+                        <option value="Ali">Ali</option>
+                        <option value="Hoba">Hoba</option>
+                        <option value="Ezzat">Ezzat</option>
+                        <option value="Guest 1">Guest 1</option>
+                        <option value="Guest 2">Guest 2</option>
+                    </select>
+                    <button type="button" id="addPlayerBtn" class="btn btn-secondary">Add</button>
+                </div>
+                <div id="selectedPlayers" class="selected-players hidden">
+                    <strong>Selected Players:</strong>
+                    <div id="playerTags"></div>
+                </div>
+            </div>
+
+            <button id="startSessionBtn" class="btn btn-primary" disabled>Start Session</button>
+            <button id="resumeSessionBtn" class="btn btn-warning hidden">Resume Existing Session</button>
+        </div>
+
+        <!-- Session Page -->
+        <div id="sessionPage" class="card hidden">
+            <div class="header">
+                <h1>🎮 Active Session</h1>
+                <p id="sessionStatus">Single Mode Active</p>
+            </div>
+
+            <div class="session-info">
+                <div class="info-card">
+                    <h3 id="totalTime">00:00:00</h3>
+                    <p>Total Time</p>
+                </div>
+                <div class="info-card">
+                    <h3 id="currentMode">Single</h3>
+                    <p>Current Mode</p>
+                </div>
+            </div>
+
+            <div class="session-info">
+                <div class="info-card">
+                    <h3 id="singleTime">00:00:00</h3>
+                    <p>Single Time</p>
+                </div>
+                <div class="info-card">
+                    <h3 id="multiTime">00:00:00</h3>
+                    <p>Multi Time</p>
+                </div>
+            </div>
+
+            <div class="mode-selector">
+                <button id="singleModeBtn" class="mode-btn active">Single Mode</button>
+                <button id="multiModeBtn" class="mode-btn">Multi Mode</button>
+            </div>
+
+            <div class="form-group">
+                <label>Add Player</label>
+                <div class="player-selection">
+                    <select id="addPlayerSelect">
+                        <option value="">Choose a player...</option>
+                    </select>
+                    <button type="button" id="addPlayerSessionBtn" class="btn btn-success">Add</button>
+                </div>
+            </div>
+
+            <div id="playersListContainer" class="players-list">
+                <h3>Active Players (<span id="activePlayerCount">0</span>)</h3>
+                <div id="playersList"></div>
+            </div>
+
+            <div class="actions">
+                <button id="endSessionBtn" class="btn btn-danger">End Session</button>
+                <button id="newSessionBtn" class="btn btn-warning">New Session</button>
+            </div>
+        </div>
+
+        <!-- Summary Page -->
+        <div id="summaryPage" class="card hidden">
+            <div class="header">
+                <h1>📊 Session Summary</h1>
+                <p>Final Cost Breakdown</p>
+            </div>
+
+            <div id="finalSummary" class="final-summary"></div>
+
+            <div class="actions">
+                <button id="newSessionFromSummaryBtn" class="btn btn-primary">New Session</button>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h3 id="confirmTitle">Confirm Action</h3>
+            <p id="confirmMessage">Are you sure?</p>
+            <div class="modal-actions">
+                <button id="confirmYes" class="btn btn-danger">Yes</button>
+                <button id="confirmNo" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
 
-  <script>
-      const firebaseConfig = {
+    <!-- Firebase Scripts -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, get, push, onValue, off, serverTimestamp, onDisconnect, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // Firebase configuration - Replace with your actual config
+          const firebaseConfig = {
     apiKey: "AIzaSyAiGYPQNJYdtNa0vw54B3BhmgXzJHxpH-A",
     authDomain: "pslounge-92f43.firebaseapp.com",
     databaseURL: "https://pslounge-92f43-default-rtdb.europe-west1.firebasedatabase.app",
@@ -392,87 +504,848 @@
     messagingSenderId: "262386185132",
     appId: "1:262386185132:web:0c7ceb92860ed6f7a9c009"
   };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const SESSION_REF = db.ref("session");
 
-    class App {
-      constructor() {
-        this.singlePrice = 60;
-        this.multiPrice = 80;
-        this.players = [];
-        this.sessionStartTime = null;
-        this.mode = "single";
-        this.timer = 0;
-        this.interval = null;
-        this.init();
-      }
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
 
-      init() {
-        document.getElementById("addPlayerBtn").onclick = () => {
-          const name = document.getElementById("playerSelect").value;
-          if (name && !this.players.includes(name)) {
-            this.players.push(name);
-          }
-        };
+        class PlayStationCalculator {
+            constructor() {
+                this.singlePrice = 60;
+                this.multiPrice = 80;
+                this.sessionId = null;
+                this.sessionRef = null;
+                this.sessionStartTime = null;
+                this.currentMode = 'single';
+                this.selectedPlayers = [];
+                this.activePlayers = [];
+                this.sessionHistory = [];
+                this.timers = {
+                    total: 0,
+                    single: 0,
+                    multi: 0
+                };
+                this.lastModeChangeTime = null;
+                this.sessionInterval = null;
+                this.currentAction = null;
+                this.currentActionData = null;
+                this.isConnected = false;
+                this.listeners = [];
+                this.lastUpdate = null;
+                
+                this.initializeEventListeners();
+                this.initializeFirebase();
+                this.updatePlayerDropdowns();
+            }
 
-        document.getElementById("startSessionBtn").onclick = () => {
-          this.singlePrice = +document.getElementById("singlePrice").value;
-          this.multiPrice = +document.getElementById("multiPrice").value;
-          this.sessionStartTime = new Date();
-          this.timer = 0;
-          this.saveSession();
-          this.startTimer();
-          document.getElementById("startPage").classList.add("hidden");
-          document.getElementById("sessionPage").classList.remove("hidden");
-        };
+            async initializeFirebase() {
+                try {
+                    this.updateConnectionStatus('connecting');
+                    
+                    // Check for existing session
+                    await this.checkExistingSession();
+                    
+                    // Set up connection monitoring
+                    const connectedRef = ref(database, '.info/connected');
+                    onValue(connectedRef, (snapshot) => {
+                        this.isConnected = snapshot.val();
+                        this.updateConnectionStatus(this.isConnected ? 'connected' : 'disconnected');
+                    });
+                    
+                } catch (error) {
+                    console.error('Firebase initialization error:', error);
+                    this.updateConnectionStatus('disconnected');
+                }
+            }
 
-        document.getElementById("endSessionBtn").onclick = () => {
-          clearInterval(this.interval);
-          SESSION_REF.remove();
-          alert("Session Ended");
-          location.reload();
-        };
+            async checkExistingSession() {
+                try {
+                    const sessionsRef = ref(database, 'sessions');
+                    const snapshot = await get(sessionsRef);
+                    
+                    if (snapshot.exists()) {
+                        const sessions = snapshot.val();
+                        const activeSessions = Object.entries(sessions).filter(([id, session]) => 
+                            session.isActive && session.sessionStartTime
+                        );
+                        
+                        if (activeSessions.length > 0) {
+                            const [sessionId, sessionData] = activeSessions[0];
+                            this.sessionId = sessionId;
+                            document.getElementById('resumeSessionBtn').classList.remove('hidden');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking existing session:', error);
+                }
+            }
 
-        SESSION_REF.once("value").then((snap) => {
-          if (snap.exists()) this.resumeSession(snap.val());
-        });
-      }
+            async resumeSession() {
+                if (!this.sessionId) return;
+                
+                try {
+                    const sessionRef = ref(database, `sessions/${this.sessionId}`);
+                    const snapshot = await get(sessionRef);
+                    
+                    if (snapshot.exists()) {
+                        const sessionData = snapshot.val();
+                        
+                        this.singlePrice = sessionData.singlePrice || 60;
+                        this.multiPrice = sessionData.multiPrice || 80;
+                        this.sessionStartTime = new Date(sessionData.sessionStartTime);
+                        this.currentMode = sessionData.currentMode || 'single';
+                        this.activePlayers = sessionData.activePlayers || [];
+                        this.sessionHistory = sessionData.sessionHistory || [];
+                        this.lastModeChangeTime = new Date(sessionData.lastModeChangeTime || sessionData.sessionStartTime);
+                        
+                        // Convert timestamps back to Date objects
+                        this.activePlayers.forEach(player => {
+                            player.joinTime = new Date(player.joinTime);
+                        });
+                        
+                        this.sessionHistory.forEach(period => {
+                            period.startTime = new Date(period.startTime);
+                            if (period.endTime) {
+                                period.endTime = new Date(period.endTime);
+                            }
+                        });
+                        
+                        this.sessionRef = sessionRef;
+                        this.showPage('sessionPage');
+                        this.startRealtimeSync();
+                        this.startTimer();
+                        this.updateSessionDisplay();
+                    }
+                } catch (error) {
+                    console.error('Error resuming session:', error);
+                }
+            }
 
-      saveSession() {
-        SESSION_REF.set({
-          singlePrice: this.singlePrice,
-          multiPrice: this.multiPrice,
-          players: this.players,
-          sessionStartTime: this.sessionStartTime.toISOString(),
-          mode: this.mode,
-          timer: this.timer
-        });
-      }
+            async startRealtimeSync() {
+                if (!this.sessionRef) return;
+                
+                // Remove any existing listeners
+                this.cleanupListeners();
+                
+                // Listen for changes
+                const listener = onValue(this.sessionRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.val();
+                        if (data.lastUpdated && data.lastUpdated !== this.lastUpdate) {
+                            this.syncFromFirebase(data);
+                        }
+                    }
+                });
+                
+                this.listeners.push(listener);
+                
+                // Set up onDisconnect to mark session as inactive if all clients disconnect
+                onDisconnect(this.sessionRef).update({
+                    isActive: false
+                });
+            }
 
-      resumeSession(data) {
-        this.singlePrice = data.singlePrice;
-        this.multiPrice = data.multiPrice;
-        this.players = data.players;
-        this.sessionStartTime = new Date(data.sessionStartTime);
-        this.mode = data.mode;
-        this.timer = data.timer;
+            cleanupListeners() {
+                this.listeners.forEach(listener => {
+                    off(listener);
+                });
+                this.listeners = [];
+            }
 
-        this.startTimer();
-        document.getElementById("startPage").classList.add("hidden");
-        document.getElementById("sessionPage").classList.remove("hidden");
-      }
+            syncFromFirebase(data) {
+                this.lastUpdate = data.lastUpdated;
+                
+                // Update local state
+                this.currentMode = data.currentMode || this.currentMode;
+                this.activePlayers = data.activePlayers || this.activePlayers;
+                this.sessionHistory = data.sessionHistory || this.sessionHistory;
+                this.lastModeChangeTime = new Date(data.lastModeChangeTime || Date.now());
+                
+                // Convert timestamps
+                this.activePlayers.forEach(player => {
+                    if (typeof player.joinTime === 'string') {
+                        player.joinTime = new Date(player.joinTime);
+                    }
+                });
+                
+                this.sessionHistory.forEach(period => {
+                    if (typeof period.startTime === 'string') {
+                        period.startTime = new Date(period.startTime);
+                    }
+                    if (period.endTime && typeof period.endTime === 'string') {
+                        period.endTime = new Date(period.endTime);
+                    }
+                });
+                
+                // Update timers based on current time
+                const now = new Date();
+                this.timers.total = Math.floor((now - new Date(data.sessionStartTime)) / 1000);
+                
+                // Calculate single and multi times
+                let singleTime = 0;
+                let multiTime = 0;
+                
+                this.sessionHistory.forEach(period => {
+                    const start = period.startTime;
+                    const end = period.endTime || now;
+                    const duration = Math.floor((end - start) / 1000);
+                    
+                    if (period.mode === 'single') {
+                        singleTime += duration;
+                    } else {
+                        multiTime += duration;
+                    }
+                });
+                
+                this.timers.single = singleTime;
+                this.timers.multi = multiTime;
+                
+                this.updateSessionDisplay();
+                this.updatePlayerDropdowns();
+            }
 
-      startTimer() {
-        this.interval = setInterval(() => {
-          this.timer++;
-          this.saveSession();
-          document.getElementById("sessionStatus").innerText = `Time: ${this.timer}s Mode: ${this.mode}`;
-        }, 1000);
-      }
-    }
+            async syncToFirebase() {
+                if (!this.sessionRef || !this.isConnected) return;
+                
+                try {
+                    const data = {
+                        singlePrice: this.singlePrice,
+                        multiPrice: this.multiPrice,
+                        sessionStartTime: this.sessionStartTime?.toISOString(),
+                        currentMode: this.currentMode,
+                        activePlayers: this.activePlayers,
+                        sessionHistory: this.sessionHistory,
+                        lastModeChangeTime: this.lastModeChangeTime?.toISOString(),
+                        isActive: true,
+                        lastUpdated: Date.now()
+                    };
+                    
+                    this.lastUpdate = data.lastUpdated;
+                    await set(this.sessionRef, data);
+                } catch (error) {
+                    console.error('Error syncing to Firebase:', error);
+                }
+            }
 
-    const app = new App();
-  </script>
+            updateConnectionStatus(status) {
+                const statusElement = document.getElementById('connectionStatus');
+                const textElement = document.getElementById('connectionText');
+                const spinner = document.getElementById('loadingSpinner');
+                
+                statusElement.className = `connection-status ${status}`;
+                
+                switch (status) {
+                    case 'connected':
+                        textElement.textContent = 'Connected';
+                        spinner.style.display = 'none';
+                        break;
+                    case 'disconnected':
+                        textElement.textContent = 'Disconnected';
+                        spinner.style.display = 'none';
+                        break;
+                    case 'connecting':
+                        textElement.textContent = 'Connecting';
+                        spinner.style.display = 'inline-block';
+                        break;
+                }
+            }
+
+            initializeEventListeners() {
+                // Start page events
+                document.getElementById('addPlayerBtn').addEventListener('click', () => this.addPlayerToSelection());
+                document.getElementById('startSessionBtn').addEventListener('click', () => this.startSession());
+                document.getElementById('resumeSessionBtn').addEventListener('click', () => this.resumeSession());
+                document.getElementById('playerSelect').addEventListener('change', () => this.updateAddButton());
+
+                // Session page events
+                document.getElementById('singleModeBtn').addEventListener('click', () => this.confirmModeChange('single'));
+                document.getElementById('multiModeBtn').addEventListener('click', () => this.confirmModeChange('multi'));
+                document.getElementById('addPlayerSessionBtn').addEventListener('click', () => this.addPlayerToSession());
+                document.getElementById('endSessionBtn').addEventListener('click', () => this.confirmEndSession());
+                document.getElementById('newSessionBtn').addEventListener('click', () => this.confirmNewSession());
+
+                // Summary page events
+                document.getElementById('newSessionFromSummaryBtn').addEventListener('click', () => this.newSession());
+
+                // Modal events
+                document.getElementById('confirmYes').addEventListener('click', () => this.executeConfirmedAction());
+                document.getElementById('confirmNo').addEventListener('click', () => this.closeModal());
+                
+                document.getElementById('confirmModal').addEventListener('click', (e) => {
+                    if (e.target === document.getElementById('confirmModal')) {
+                        this.closeModal();
+                    }
+                });
+            }
+
+            updateAddButton() {
+                const select = document.getElementById('playerSelect');
+                const btn = document.getElementById('addPlayerBtn');
+                btn.disabled = !select.value || this.selectedPlayers.includes(select.value);
+            }
+
+            addPlayerToSelection() {
+                const select = document.getElementById('playerSelect');
+                const player = select.value;
+                
+                if (player && !this.selectedPlayers.includes(player)) {
+                    this.selectedPlayers.push(player);
+                    this.updateSelectedPlayersDisplay();
+                    this.updateStartButton();
+                    select.value = '';
+                    this.updateAddButton();
+                }
+            }
+
+            updateSelectedPlayersDisplay() {
+                const container = document.getElementById('selectedPlayers');
+                const tagsContainer = document.getElementById('playerTags');
+                
+                if (this.selectedPlayers.length > 0) {
+                    container.classList.remove('hidden');
+                    tagsContainer.innerHTML = this.selectedPlayers.map(player => 
+                        `<span class="player-tag">${player}</span>`
+                    ).join('');
+                } else {
+                    container.classList.add('hidden');
+                }
+            }
+
+            updateStartButton() {
+                const btn = document.getElementById('startSessionBtn');
+                btn.disabled = this.selectedPlayers.length < 2;
+            }
+
+            async startSession() {
+                this.singlePrice = parseFloat(document.getElementById('singlePrice').value);
+                this.multiPrice = parseFloat(document.getElementById('multiPrice').value);
+                
+                this.sessionStartTime = new Date();
+                this.lastModeChangeTime = new Date();
+                this.currentMode = 'single';
+                
+                // Initialize active players
+                this.activePlayers = this.selectedPlayers.map(name => ({
+                    name: name,
+                    joinTime: new Date(),
+                    totalTime: 0,
+                    singleTime: 0,
+                    multiTime: 0,
+                    cost: 0,
+                    periods: []
+                }));
+
+                // Add initial period
+                this.sessionHistory.push({
+                    startTime: new Date(),
+                    mode: 'single',
+                    players: [...this.activePlayers.map(p => p.name)]
+                });
+
+                // Create session in Firebase
+                try {
+                    const sessionsRef = ref(database, 'sessions');
+                    const newSessionRef = push(sessionsRef);
+                    this.sessionId = newSessionRef.key;
+                    this.sessionRef = newSessionRef;
+                    
+                    await this.syncToFirebase();
+                    
+                    this.showPage('sessionPage');
+                    this.startRealtimeSync();
+                    this.updatePlayerDropdowns();
+                    this.updateSessionDisplay();
+                    this.startTimer();
+                } catch (error) {
+                    console.error('Error starting session:', error);
+                }
+            }
+
+            startTimer() {
+                if (this.sessionInterval) {
+                    clearInterval(this.sessionInterval);
+                }
+                
+                this.sessionInterval = setInterval(() => {
+                    const now = new Date();
+                    const totalMs = now - this.sessionStartTime;
+                    
+                    this.timers.total = Math.floor(totalMs / 1000);
+                    
+                    if (this.currentMode === 'single') {
+                        this.timers.single += 1;
+                    } else {
+                        this.timers.multi += 1;
+                    }
+                    
+                    this.updateActivePlayers();
+                    this.updateSessionDisplay();
+                    
+                    // Sync to Firebase every 30 seconds
+                    if (this.timers.total % 30 === 0) {
+                        this.syncToFirebase();
+                    }
+                }, 1000);
+            }
+
+            updateActivePlayers() {
+                const now = new Date();
+                
+                this.activePlayers.forEach(player => {
+                    const totalMs = now - player.joinTime;
+                    player.totalTime = Math.floor(totalMs / 1000);
+                    player.cost = this.calculatePlayerCost(player.name, now);
+                });
+            }
+
+            getPlayerBreakdown(playerName) {
+                const breakdown = [];
+                
+                this.sessionHistory.forEach(period => {
+                    if (period.players.includes(playerName)) {
+                        const periodStart = period.startTime;
+                        const periodEnd = period.endTime || new Date();
+                        const periodHours = (periodEnd - periodStart) / (1000 * 60 * 60);
+                        const pricePerHour = period.mode === 'single' ? this.singlePrice : this.multiPrice;
+                        const periodCost = (pricePerHour * periodHours) / period.players.length;
+                        
+                        breakdown.push({
+                            mode: period.mode,
+                            startTime: periodStart,
+                            endTime: periodEnd,
+                            duration: periodHours,
+                            cost: periodCost,
+                            pricePerHour: pricePerHour,
+                            playerCount: period.players.length
+                        });
+                    }
+                });
+                
+                return breakdown;
+            }
+
+            calculatePlayerCost(playerName, currentTime) {
+                let totalCost = 0;
+                const now = currentTime || new Date();
+                
+                this.sessionHistory.forEach(period => {
+                    if (period.players.includes(playerName)) {
+                        const periodStart = period.startTime;
+                        const periodEnd = period.endTime || now;
+                        const periodHours = (periodEnd - periodStart) / (1000 * 60 * 60);
+                        const pricePerHour = period.mode === 'single' ? this.singlePrice : this.multiPrice;
+                        const periodCost = (pricePerHour * periodHours) / period.players.length;
+                        totalCost += periodCost;
+                    }
+                });
+
+                return totalCost;
+            }
+
+            confirmModeChange(newMode) {
+                if (newMode === this.currentMode) return;
+                
+                this.currentAction = 'modeChange';
+                this.currentActionData = { newMode };
+                this.showConfirmModal(
+                    'Change Game Mode',
+                    `Switch from ${this.currentMode} mode to ${newMode} mode?`
+                );
+            }
+
+            async changeModeConfirmed(newMode) {
+                // End current period
+                const currentPeriod = this.sessionHistory[this.sessionHistory.length - 1];
+                if (currentPeriod && !currentPeriod.endTime) {
+                    currentPeriod.endTime = new Date();
+                }
+
+                // Start new period
+                this.currentMode = newMode;
+                this.lastModeChangeTime = new Date();
+                
+                this.sessionHistory.push({
+                    startTime: new Date(),
+                    mode: newMode,
+                    players: [...this.activePlayers.map(p => p.name)]
+                });
+
+                await this.syncToFirebase();
+                this.updateSessionDisplay();
+            }
+
+            async addPlayerToSession() {
+                const select = document.getElementById('addPlayerSelect');
+                const playerName = select.value;
+                
+                if (playerName) {
+                    const newPlayer = {
+                        name: playerName,
+                        joinTime: new Date(),
+                        totalTime: 0,
+                        singleTime: 0,
+                        multiTime: 0,
+                        cost: 0,
+                        periods: []
+                    };
+                    
+                    this.activePlayers.push(newPlayer);
+                    
+                    // End current period and start new one with added player
+                    const currentPeriod = this.sessionHistory[this.sessionHistory.length - 1];
+                    if (currentPeriod && !currentPeriod.endTime) {
+                        currentPeriod.endTime = new Date();
+                    }
+
+                    this.lastModeChangeTime = new Date();
+                    this.sessionHistory.push({
+                        startTime: new Date(),
+                        mode: this.currentMode,
+                        players: [...this.activePlayers.map(p => p.name)]
+                    });
+
+                    select.value = '';
+                    await this.syncToFirebase();
+                    this.updatePlayerDropdowns();
+                    this.updateSessionDisplay();
+                }
+            }
+
+            confirmRemovePlayer(playerName) {
+                const player = this.activePlayers.find(p => p.name === playerName);
+                const finalCost = this.calculatePlayerCost(playerName);
+                const breakdown = this.getPlayerBreakdown(playerName);
+                
+                this.currentAction = 'removePlayer';
+                this.currentActionData = { playerName };
+                
+                // Show detailed payment breakdown
+                this.showPlayerPaymentModal(playerName, finalCost, breakdown);
+            }
+
+            showPlayerPaymentModal(playerName, totalCost, breakdown) {
+                const modal = document.getElementById('confirmModal');
+                const title = document.getElementById('confirmTitle');
+                const message = document.getElementById('confirmMessage');
+                
+                title.textContent = `${playerName} - Payment Due`;
+                
+                let breakdownHTML = `
+                    <div style="text-align: left; margin: 20px 0;">
+                        <strong>Total Amount: ${totalCost.toFixed(2)} EGP</strong>
+                        <br><br>
+                        <strong>Payment Breakdown:</strong>
+                        <div style="font-size: 0.9rem; margin-top: 10px;">
+                `;
+                
+                breakdown.forEach((period, index) => {
+                    const startTime = period.startTime.toLocaleTimeString();
+                    const endTime = period.endTime ? period.endTime.toLocaleTimeString() : 'Now';
+                    const duration = this.formatTime(Math.floor((period.endTime || new Date() - period.startTime) / 1000));
+                    
+                    breakdownHTML += `
+                        <div style="margin: 8px 0; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 8px;">
+                            <strong>${period.mode.charAt(0).toUpperCase() + period.mode.slice(1)} Mode:</strong> ${period.cost.toFixed(2)} EGP<br>
+                            <small>⏰ ${startTime} - ${endTime} (${duration})</small><br>
+                            <small>👥 Split with ${period.playerCount} players</small>
+                        </div>
+                    `;
+                });
+                
+                breakdownHTML += `
+                        </div>
+                    </div>
+                `;
+                
+                message.innerHTML = breakdownHTML;
+                modal.style.display = 'block';
+            }
+
+            async removePlayerConfirmed(playerName) {
+                this.activePlayers = this.activePlayers.filter(p => p.name !== playerName);
+                
+                // End current period
+                const currentPeriod = this.sessionHistory[this.sessionHistory.length - 1];
+                if (currentPeriod && !currentPeriod.endTime) {
+                    currentPeriod.endTime = new Date();
+                }
+
+                // Check if we have enough players to continue
+                if (this.activePlayers.length < 2) {
+                    await this.endSession();
+                    return;
+                }
+
+                // Start new period without removed player
+                this.lastModeChangeTime = new Date();
+                this.sessionHistory.push({
+                    startTime: new Date(),
+                    mode: this.currentMode,
+                    players: [...this.activePlayers.map(p => p.name)]
+                });
+
+                await this.syncToFirebase();
+                this.updatePlayerDropdowns();
+                this.updateSessionDisplay();
+            }
+
+            confirmEndSession() {
+                this.currentAction = 'endSession';
+                this.currentActionData = {};
+                this.showConfirmModal(
+                    'End Session',
+                    'Are you sure you want to end the current session?'
+                );
+            }
+
+            confirmNewSession() {
+                this.currentAction = 'newSession';
+                this.currentActionData = {};
+                this.showConfirmModal(
+                    'New Session',
+                    'Are you sure you want to start a new session? Current session will be lost.'
+                );
+            }
+
+            async endSession() {
+                // End current period
+                const currentPeriod = this.sessionHistory[this.sessionHistory.length - 1];
+                if (currentPeriod && !currentPeriod.endTime) {
+                    currentPeriod.endTime = new Date();
+                }
+
+                // Mark session as inactive in Firebase
+                if (this.sessionRef) {
+                    try {
+                        await set(this.sessionRef, {
+                            ...(await get(this.sessionRef)).val(),
+                            isActive: false
+                        });
+                    } catch (error) {
+                        console.error('Error ending session in Firebase:', error);
+                    }
+                }
+
+                clearInterval(this.sessionInterval);
+                this.cleanupListeners();
+                this.generateSummary();
+                this.showPage('summaryPage');
+            }
+
+            newSession() {
+                this.reset();
+                this.showPage('startPage');
+            }
+
+            reset() {
+                if (this.sessionInterval) {
+                    clearInterval(this.sessionInterval);
+                }
+                
+                this.cleanupListeners();
+                
+                this.selectedPlayers = [];
+                this.activePlayers = [];
+                this.sessionHistory = [];
+                this.timers = { total: 0, single: 0, multi: 0 };
+                this.sessionStartTime = null;
+                this.lastModeChangeTime = null;
+                this.currentMode = 'single';
+                this.sessionId = null;
+                this.sessionRef = null;
+                this.lastUpdate = null;
+                
+                this.updateSelectedPlayersDisplay();
+                this.updateStartButton();
+                this.updatePlayerDropdowns();
+            }
+
+            generateSummary() {
+                const summaryContainer = document.getElementById('finalSummary');
+                let totalSessionCost = 0;
+                
+                // Calculate final costs for all players who participated
+                const allPlayers = new Set();
+                this.sessionHistory.forEach(period => {
+                    period.players.forEach(player => allPlayers.add(player));
+                });
+
+                const playerSummaries = [];
+                allPlayers.forEach(playerName => {
+                    const cost = this.calculatePlayerCost(playerName);
+                    const breakdown = this.getPlayerBreakdown(playerName);
+                    totalSessionCost += cost;
+                    
+                    playerSummaries.push({
+                        name: playerName,
+                        cost: cost,
+                        breakdown: breakdown
+                    });
+                });
+
+                // Sort by cost (highest first)
+                playerSummaries.sort((a, b) => b.cost - a.cost);
+
+                let summaryHTML = '';
+                playerSummaries.forEach(player => {
+                    const totalTime = player.breakdown.reduce((total, period) => {
+                        return total + (period.endTime - period.startTime);
+                    }, 0);
+                    
+                    summaryHTML += `
+                        <div class="summary-item">
+                            <div class="player-name">${player.name}</div>
+                            <div class="player-cost">${player.cost.toFixed(2)} EGP</div>
+                            <div class="player-stats">
+                                Total time: ${this.formatTime(totalTime / 1000)} | 
+                                Periods: ${player.breakdown.length}
+                            </div>
+                            <div class="breakdown-details" style="margin-top: 10px; font-size: 0.85rem;">
+                                <strong>Payment Breakdown:</strong>
+                    `;
+                    
+                    player.breakdown.forEach((period, index) => {
+                        const startTime = period.startTime.toLocaleTimeString();
+                        const endTime = period.endTime.toLocaleTimeString();
+                        const duration = this.formatTime(Math.floor((period.endTime - period.startTime) / 1000));
+                        
+                        summaryHTML += `
+                            <div style="margin: 5px 0; padding: 5px; background: rgba(0,0,0,0.05); border-radius: 5px;">
+                                <strong>${period.mode.charAt(0).toUpperCase() + period.mode.slice(1)}:</strong> ${period.cost.toFixed(2)} EGP
+                                <br><small>⏰ ${startTime} - ${endTime} (${duration})</small>
+                                <br><small>👥 Split with ${period.playerCount} players</small>
+                            </div>
+                        `;
+                    });
+                    
+                    summaryHTML += `
+                            </div>
+                        </div>
+                    `;
+                });
+
+                summaryHTML += `
+                    <div class="summary-total">
+                        Total Session Cost: ${totalSessionCost.toFixed(2)} EGP
+                    </div>
+                `;
+
+                summaryContainer.innerHTML = summaryHTML;
+            }
+
+            updatePlayerDropdowns() {
+                const allPlayers = ['Amr', 'Essawy', 'Omar', 'Fady', 'Kareem', 
+                                 'Ali', 'Hoba', 'Ezzat', 'Guest 1', 'Guest 2'];
+                
+                // Update add player dropdown in session
+                const sessionSelect = document.getElementById('addPlayerSelect');
+                const activePlayerNames = this.activePlayers.map(p => p.name);
+                
+                sessionSelect.innerHTML = '<option value="">Choose a player...</option>';
+                allPlayers.forEach(player => {
+                    if (!activePlayerNames.includes(player)) {
+                        sessionSelect.innerHTML += `<option value="${player}">${player}</option>`;
+                    }
+                });
+            }
+
+            updateSessionDisplay() {
+                // Update timers
+                document.getElementById('totalTime').textContent = this.formatTime(this.timers.total);
+                document.getElementById('singleTime').textContent = this.formatTime(this.timers.single);
+                document.getElementById('multiTime').textContent = this.formatTime(this.timers.multi);
+                
+                // Update current mode
+                document.getElementById('currentMode').textContent = this.currentMode.charAt(0).toUpperCase() + this.currentMode.slice(1);
+                document.getElementById('sessionStatus').textContent = `${this.currentMode.charAt(0).toUpperCase() + this.currentMode.slice(1)} Mode Active`;
+                
+                // Update mode buttons
+                document.getElementById('singleModeBtn').className = 'mode-btn' + (this.currentMode === 'single' ? ' active' : '');
+                document.getElementById('multiModeBtn').className = 'mode-btn' + (this.currentMode === 'multi' ? ' active' : '');
+                
+                // Update players list
+                this.updatePlayersList();
+                
+                // Update active player count
+                document.getElementById('activePlayerCount').textContent = this.activePlayers.length;
+            }
+
+            updatePlayersList() {
+                const container = document.getElementById('playersList');
+                
+                container.innerHTML = this.activePlayers.map(player => `
+                    <div class="player-item">
+                        <div class="player-info">
+                            <div class="player-name">${player.name}</div>
+                            <div class="player-stats">
+                                Time: ${this.formatTime(player.totalTime)} | 
+                                Cost: ${player.cost.toFixed(2)} EGP
+                            </div>
+                            <div class="timestamp">
+                                Joined: ${player.joinTime.toLocaleTimeString()}
+                            </div>
+                        </div>
+                        <button class="remove-player" onclick="app.confirmRemovePlayer('${player.name}')">Remove</button>
+                    </div>
+                `).join('');
+            }
+
+            formatTime(seconds) {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = seconds % 60;
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            showConfirmModal(title, message) {
+                document.getElementById('confirmTitle').textContent = title;
+                document.getElementById('confirmMessage').innerHTML = message;
+                document.getElementById('confirmModal').style.display = 'block';
+            }
+
+            closeModal() {
+                document.getElementById('confirmModal').style.display = 'none';
+                this.currentAction = null;
+                this.currentActionData = null;
+            }
+
+            async executeConfirmedAction() {
+                try {
+                    switch (this.currentAction) {
+                        case 'modeChange':
+                            await this.changeModeConfirmed(this.currentActionData.newMode);
+                            break;
+                        case 'removePlayer':
+                            await this.removePlayerConfirmed(this.currentActionData.playerName);
+                            break;
+                        case 'endSession':
+                            await this.endSession();
+                            break;
+                        case 'newSession':
+                            this.newSession();
+                            break;
+                    }
+                } catch (error) {
+                    console.error('Error executing action:', error);
+                }
+                this.closeModal();
+            }
+
+            showPage(pageId) {
+                const pages = ['startPage', 'sessionPage', 'summaryPage'];
+                pages.forEach(page => {
+                    const element = document.getElementById(page);
+                    if (page === pageId) {
+                        element.classList.remove('hidden');
+                    } else {
+                        element.classList.add('hidden');
+                    }
+                });
+            }
+        }
+
+        // Initialize the app
+        const app = new PlayStationCalculator();
+    </script>
 </body>
 </html>
