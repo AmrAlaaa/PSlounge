@@ -356,11 +356,6 @@
     </style>
 </head>
 <body>
-    <div class="connection-status" id="connectionStatus">
-        <span id="connectionText">Connecting</span>
-        <span class="loading-spinner" id="loadingSpinner"></span>
-    </div>
-
     <div class="container">
         <!-- Start Page -->
         <div id="startPage" class="card">
@@ -404,7 +399,6 @@
             </div>
 
             <button id="startSessionBtn" class="btn btn-primary" disabled>Start Session</button>
-            <button id="resumeSessionBtn" class="btn btn-warning hidden">Resume Existing Session</button>
         </div>
 
         <!-- Session Page -->
@@ -489,32 +483,11 @@
         </div>
     </div>
 
-    <!-- Firebase Scripts -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, set, get, push, onValue, off, serverTimestamp, onDisconnect, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-
-        // Firebase configuration - Replace with your actual config
-          const firebaseConfig = {
-    apiKey: "AIzaSyAiGYPQNJYdtNa0vw54B3BhmgXzJHxpH-A",
-    authDomain: "pslounge-92f43.firebaseapp.com",
-    databaseURL: "https://pslounge-92f43-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "pslounge-92f43",
-    storageBucket: "pslounge-92f43.firebasestorage.app",
-    messagingSenderId: "262386185132",
-    appId: "1:262386185132:web:0c7ceb92860ed6f7a9c009"
-  };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
-
+    <script>
         class PlayStationCalculator {
             constructor() {
                 this.singlePrice = 60;
                 this.multiPrice = 80;
-                this.sessionId = null;
-                this.sessionRef = null;
                 this.sessionStartTime = null;
                 this.currentMode = 'single';
                 this.selectedPlayers = [];
@@ -529,232 +502,15 @@
                 this.sessionInterval = null;
                 this.currentAction = null;
                 this.currentActionData = null;
-                this.isConnected = false;
-                this.listeners = [];
-                this.lastUpdate = null;
                 
                 this.initializeEventListeners();
-                this.initializeFirebase();
                 this.updatePlayerDropdowns();
-            }
-
-            async initializeFirebase() {
-                try {
-                    this.updateConnectionStatus('connecting');
-                    
-                    // Check for existing session
-                    await this.checkExistingSession();
-                    
-                    // Set up connection monitoring
-                    const connectedRef = ref(database, '.info/connected');
-                    onValue(connectedRef, (snapshot) => {
-                        this.isConnected = snapshot.val();
-                        this.updateConnectionStatus(this.isConnected ? 'connected' : 'disconnected');
-                    });
-                    
-                } catch (error) {
-                    console.error('Firebase initialization error:', error);
-                    this.updateConnectionStatus('disconnected');
-                }
-            }
-
-            async checkExistingSession() {
-                try {
-                    const sessionsRef = ref(database, 'sessions');
-                    const snapshot = await get(sessionsRef);
-                    
-                    if (snapshot.exists()) {
-                        const sessions = snapshot.val();
-                        const activeSessions = Object.entries(sessions).filter(([id, session]) => 
-                            session.isActive && session.sessionStartTime
-                        );
-                        
-                        if (activeSessions.length > 0) {
-                            const [sessionId, sessionData] = activeSessions[0];
-                            this.sessionId = sessionId;
-                            document.getElementById('resumeSessionBtn').classList.remove('hidden');
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error checking existing session:', error);
-                }
-            }
-
-            async resumeSession() {
-                if (!this.sessionId) return;
-                
-                try {
-                    const sessionRef = ref(database, `sessions/${this.sessionId}`);
-                    const snapshot = await get(sessionRef);
-                    
-                    if (snapshot.exists()) {
-                        const sessionData = snapshot.val();
-                        
-                        this.singlePrice = sessionData.singlePrice || 60;
-                        this.multiPrice = sessionData.multiPrice || 80;
-                        this.sessionStartTime = new Date(sessionData.sessionStartTime);
-                        this.currentMode = sessionData.currentMode || 'single';
-                        this.activePlayers = sessionData.activePlayers || [];
-                        this.sessionHistory = sessionData.sessionHistory || [];
-                        this.lastModeChangeTime = new Date(sessionData.lastModeChangeTime || sessionData.sessionStartTime);
-                        
-                        // Convert timestamps back to Date objects
-                        this.activePlayers.forEach(player => {
-                            player.joinTime = new Date(player.joinTime);
-                        });
-                        
-                        this.sessionHistory.forEach(period => {
-                            period.startTime = new Date(period.startTime);
-                            if (period.endTime) {
-                                period.endTime = new Date(period.endTime);
-                            }
-                        });
-                        
-                        this.sessionRef = sessionRef;
-                        this.showPage('sessionPage');
-                        this.startRealtimeSync();
-                        this.startTimer();
-                        this.updateSessionDisplay();
-                    }
-                } catch (error) {
-                    console.error('Error resuming session:', error);
-                }
-            }
-
-            async startRealtimeSync() {
-                if (!this.sessionRef) return;
-                
-                // Remove any existing listeners
-                this.cleanupListeners();
-                
-                // Listen for changes
-                const listener = onValue(this.sessionRef, (snapshot) => {
-                    if (snapshot.exists()) {
-                        const data = snapshot.val();
-                        if (data.lastUpdated && data.lastUpdated !== this.lastUpdate) {
-                            this.syncFromFirebase(data);
-                        }
-                    }
-                });
-                
-                this.listeners.push(listener);
-                
-                // Set up onDisconnect to mark session as inactive if all clients disconnect
-                onDisconnect(this.sessionRef).update({
-                    isActive: false
-                });
-            }
-
-            cleanupListeners() {
-                this.listeners.forEach(listener => {
-                    off(listener);
-                });
-                this.listeners = [];
-            }
-
-            syncFromFirebase(data) {
-                this.lastUpdate = data.lastUpdated;
-                
-                // Update local state
-                this.currentMode = data.currentMode || this.currentMode;
-                this.activePlayers = data.activePlayers || this.activePlayers;
-                this.sessionHistory = data.sessionHistory || this.sessionHistory;
-                this.lastModeChangeTime = new Date(data.lastModeChangeTime || Date.now());
-                
-                // Convert timestamps
-                this.activePlayers.forEach(player => {
-                    if (typeof player.joinTime === 'string') {
-                        player.joinTime = new Date(player.joinTime);
-                    }
-                });
-                
-                this.sessionHistory.forEach(period => {
-                    if (typeof period.startTime === 'string') {
-                        period.startTime = new Date(period.startTime);
-                    }
-                    if (period.endTime && typeof period.endTime === 'string') {
-                        period.endTime = new Date(period.endTime);
-                    }
-                });
-                
-                // Update timers based on current time
-                const now = new Date();
-                this.timers.total = Math.floor((now - new Date(data.sessionStartTime)) / 1000);
-                
-                // Calculate single and multi times
-                let singleTime = 0;
-                let multiTime = 0;
-                
-                this.sessionHistory.forEach(period => {
-                    const start = period.startTime;
-                    const end = period.endTime || now;
-                    const duration = Math.floor((end - start) / 1000);
-                    
-                    if (period.mode === 'single') {
-                        singleTime += duration;
-                    } else {
-                        multiTime += duration;
-                    }
-                });
-                
-                this.timers.single = singleTime;
-                this.timers.multi = multiTime;
-                
-                this.updateSessionDisplay();
-                this.updatePlayerDropdowns();
-            }
-
-            async syncToFirebase() {
-                if (!this.sessionRef || !this.isConnected) return;
-                
-                try {
-                    const data = {
-                        singlePrice: this.singlePrice,
-                        multiPrice: this.multiPrice,
-                        sessionStartTime: this.sessionStartTime?.toISOString(),
-                        currentMode: this.currentMode,
-                        activePlayers: this.activePlayers,
-                        sessionHistory: this.sessionHistory,
-                        lastModeChangeTime: this.lastModeChangeTime?.toISOString(),
-                        isActive: true,
-                        lastUpdated: Date.now()
-                    };
-                    
-                    this.lastUpdate = data.lastUpdated;
-                    await set(this.sessionRef, data);
-                } catch (error) {
-                    console.error('Error syncing to Firebase:', error);
-                }
-            }
-
-            updateConnectionStatus(status) {
-                const statusElement = document.getElementById('connectionStatus');
-                const textElement = document.getElementById('connectionText');
-                const spinner = document.getElementById('loadingSpinner');
-                
-                statusElement.className = `connection-status ${status}`;
-                
-                switch (status) {
-                    case 'connected':
-                        textElement.textContent = 'Connected';
-                        spinner.style.display = 'none';
-                        break;
-                    case 'disconnected':
-                        textElement.textContent = 'Disconnected';
-                        spinner.style.display = 'none';
-                        break;
-                    case 'connecting':
-                        textElement.textContent = 'Connecting';
-                        spinner.style.display = 'inline-block';
-                        break;
-                }
             }
 
             initializeEventListeners() {
                 // Start page events
                 document.getElementById('addPlayerBtn').addEventListener('click', () => this.addPlayerToSelection());
                 document.getElementById('startSessionBtn').addEventListener('click', () => this.startSession());
-                document.getElementById('resumeSessionBtn').addEventListener('click', () => this.resumeSession());
                 document.getElementById('playerSelect').addEventListener('change', () => this.updateAddButton());
 
                 // Session page events
@@ -771,6 +527,7 @@
                 document.getElementById('confirmYes').addEventListener('click', () => this.executeConfirmedAction());
                 document.getElementById('confirmNo').addEventListener('click', () => this.closeModal());
                 
+                // Add event listener for modal background click to close
                 document.getElementById('confirmModal').addEventListener('click', (e) => {
                     if (e.target === document.getElementById('confirmModal')) {
                         this.closeModal();
@@ -816,7 +573,7 @@
                 btn.disabled = this.selectedPlayers.length < 2;
             }
 
-            async startSession() {
+            startSession() {
                 this.singlePrice = parseFloat(document.getElementById('singlePrice').value);
                 this.multiPrice = parseFloat(document.getElementById('multiPrice').value);
                 
@@ -842,33 +599,17 @@
                     players: [...this.activePlayers.map(p => p.name)]
                 });
 
-                // Create session in Firebase
-                try {
-                    const sessionsRef = ref(database, 'sessions');
-                    const newSessionRef = push(sessionsRef);
-                    this.sessionId = newSessionRef.key;
-                    this.sessionRef = newSessionRef;
-                    
-                    await this.syncToFirebase();
-                    
-                    this.showPage('sessionPage');
-                    this.startRealtimeSync();
-                    this.updatePlayerDropdowns();
-                    this.updateSessionDisplay();
-                    this.startTimer();
-                } catch (error) {
-                    console.error('Error starting session:', error);
-                }
+                this.showPage('sessionPage');
+                this.updatePlayerDropdowns();
+                this.updateSessionDisplay();
+                this.startTimer();
             }
 
             startTimer() {
-                if (this.sessionInterval) {
-                    clearInterval(this.sessionInterval);
-                }
-                
                 this.sessionInterval = setInterval(() => {
                     const now = new Date();
                     const totalMs = now - this.sessionStartTime;
+                    const currentPeriodMs = now - this.lastModeChangeTime;
                     
                     this.timers.total = Math.floor(totalMs / 1000);
                     
@@ -880,20 +621,19 @@
                     
                     this.updateActivePlayers();
                     this.updateSessionDisplay();
-                    
-                    // Sync to Firebase every 30 seconds
-                    if (this.timers.total % 30 === 0) {
-                        this.syncToFirebase();
-                    }
                 }, 1000);
             }
 
             updateActivePlayers() {
                 const now = new Date();
+                const currentPeriodHours = (now - this.lastModeChangeTime) / (1000 * 60 * 60);
+                const pricePerSecond = (this.currentMode === 'single' ? this.singlePrice : this.multiPrice) / 3600;
                 
                 this.activePlayers.forEach(player => {
                     const totalMs = now - player.joinTime;
                     player.totalTime = Math.floor(totalMs / 1000);
+                    
+                    // Calculate cost based on all periods
                     player.cost = this.calculatePlayerCost(player.name, now);
                 });
             }
@@ -928,6 +668,7 @@
                 let totalCost = 0;
                 const now = currentTime || new Date();
                 
+                // Calculate cost for completed periods
                 this.sessionHistory.forEach(period => {
                     if (period.players.includes(playerName)) {
                         const periodStart = period.startTime;
@@ -953,7 +694,7 @@
                 );
             }
 
-            async changeModeConfirmed(newMode) {
+            changeModeConfirmed(newMode) {
                 // End current period
                 const currentPeriod = this.sessionHistory[this.sessionHistory.length - 1];
                 if (currentPeriod && !currentPeriod.endTime) {
@@ -970,11 +711,10 @@
                     players: [...this.activePlayers.map(p => p.name)]
                 });
 
-                await this.syncToFirebase();
                 this.updateSessionDisplay();
             }
 
-            async addPlayerToSession() {
+            addPlayerToSession() {
                 const select = document.getElementById('addPlayerSelect');
                 const playerName = select.value;
                 
@@ -1005,7 +745,6 @@
                     });
 
                     select.value = '';
-                    await this.syncToFirebase();
                     this.updatePlayerDropdowns();
                     this.updateSessionDisplay();
                 }
@@ -1061,7 +800,7 @@
                 modal.style.display = 'block';
             }
 
-            async removePlayerConfirmed(playerName) {
+            removePlayerConfirmed(playerName) {
                 this.activePlayers = this.activePlayers.filter(p => p.name !== playerName);
                 
                 // End current period
@@ -1072,7 +811,7 @@
 
                 // Check if we have enough players to continue
                 if (this.activePlayers.length < 2) {
-                    await this.endSession();
+                    this.endSession();
                     return;
                 }
 
@@ -1084,7 +823,6 @@
                     players: [...this.activePlayers.map(p => p.name)]
                 });
 
-                await this.syncToFirebase();
                 this.updatePlayerDropdowns();
                 this.updateSessionDisplay();
             }
@@ -1107,27 +845,14 @@
                 );
             }
 
-            async endSession() {
+            endSession() {
                 // End current period
                 const currentPeriod = this.sessionHistory[this.sessionHistory.length - 1];
                 if (currentPeriod && !currentPeriod.endTime) {
                     currentPeriod.endTime = new Date();
                 }
 
-                // Mark session as inactive in Firebase
-                if (this.sessionRef) {
-                    try {
-                        await set(this.sessionRef, {
-                            ...(await get(this.sessionRef)).val(),
-                            isActive: false
-                        });
-                    } catch (error) {
-                        console.error('Error ending session in Firebase:', error);
-                    }
-                }
-
                 clearInterval(this.sessionInterval);
-                this.cleanupListeners();
                 this.generateSummary();
                 this.showPage('summaryPage');
             }
@@ -1142,8 +867,6 @@
                     clearInterval(this.sessionInterval);
                 }
                 
-                this.cleanupListeners();
-                
                 this.selectedPlayers = [];
                 this.activePlayers = [];
                 this.sessionHistory = [];
@@ -1151,9 +874,6 @@
                 this.sessionStartTime = null;
                 this.lastModeChangeTime = null;
                 this.currentMode = 'single';
-                this.sessionId = null;
-                this.sessionRef = null;
-                this.lastUpdate = null;
                 
                 this.updateSelectedPlayersDisplay();
                 this.updateStartButton();
@@ -1257,7 +977,6 @@
                 
                 // Update current mode
                 document.getElementById('currentMode').textContent = this.currentMode.charAt(0).toUpperCase() + this.currentMode.slice(1);
-                document.getElementById('sessionStatus').textContent = `${this.currentMode.charAt(0).toUpperCase() + this.currentMode.slice(1)} Mode Active`;
                 
                 // Update mode buttons
                 document.getElementById('singleModeBtn').className = 'mode-btn' + (this.currentMode === 'single' ? ' active' : '');
@@ -1309,24 +1028,20 @@
                 this.currentActionData = null;
             }
 
-            async executeConfirmedAction() {
-                try {
-                    switch (this.currentAction) {
-                        case 'modeChange':
-                            await this.changeModeConfirmed(this.currentActionData.newMode);
-                            break;
-                        case 'removePlayer':
-                            await this.removePlayerConfirmed(this.currentActionData.playerName);
-                            break;
-                        case 'endSession':
-                            await this.endSession();
-                            break;
-                        case 'newSession':
-                            this.newSession();
-                            break;
-                    }
-                } catch (error) {
-                    console.error('Error executing action:', error);
+            executeConfirmedAction() {
+                switch (this.currentAction) {
+                    case 'modeChange':
+                        this.changeModeConfirmed(this.currentActionData.newMode);
+                        break;
+                    case 'removePlayer':
+                        this.removePlayerConfirmed(this.currentActionData.playerName);
+                        break;
+                    case 'endSession':
+                        this.endSession();
+                        break;
+                    case 'newSession':
+                        this.newSession();
+                        break;
                 }
                 this.closeModal();
             }
@@ -1345,7 +1060,7 @@
         }
 
         // Initialize the app
-        app = new PlayStationCalculator();
+        const app = new PlayStationCalculator();
     </script>
 </body>
 </html>
