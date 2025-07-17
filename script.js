@@ -1049,8 +1049,8 @@ showNoDataMessage() {
 }
 
     updatePlayerDropdowns() {
-        const allPlayers = ['Guest 1', 'Guest 2', 'Guest 3', 'Guest 4', 'Guest 5', 
-                         'Guest 6', 'Guest 7', 'Guest 8', 'Guest 9'];
+        const allPlayers = ['Amr', 'Essawy', 'Omar', 'Fady', 'Ali', 
+                         'Kareem', 'Ezzat', 'Hoba', 'Guest'];
         
         // Update add player dropdown in session
         const sessionSelect = document.getElementById('addPlayerSelect');
